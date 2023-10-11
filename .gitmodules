@@ -1,6 +1,6 @@
 [submodule "farm-ng-amiga"]
 	path = farm-ng-amiga
-	url = git@github.com:farm-ng/farm-ng-amiga.git
+	url = https://github.com/farm-ng/farm-ng-amiga.git
 [submodule "farm-ng-core"]
 	path = farm-ng-core
-	url = git@github.com:farm-ng/farm-ng-core.git
+	url = https://github.com/farm-ng/farm-ng-core.git
