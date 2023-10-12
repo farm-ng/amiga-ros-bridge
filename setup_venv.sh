@@ -10,6 +10,7 @@ cd $DIR
 git submodule update --init --recursive
 
 # Create the virtual environment
+apt update && apt install python3.8-venv
 python3 -m venv $DIR/venv
 
 # Source the virtual environment
