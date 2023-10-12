@@ -6,11 +6,8 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Change to the current directory
 cd $DIR
 
-# Ensure submodules are up to date
-git submodule update --init --recursive
-
 # Create the virtual environment
-apt update && apt install python3.8-venv
+apt update && apt install python3.8-venv -y
 python3 -m venv $DIR/venv
 
 # Source the virtual environment

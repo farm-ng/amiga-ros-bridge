@@ -58,12 +58,6 @@ cd ~/catkin_ws/src/
 git clone --recursive https://github.com/farm-ng/amiga-ros-bridge.git
 ```
 
-### Build the venv
-
-```bash
-./amiga-ros-bridge/setup_venv.sh
-```
-
 ### Start the container
 
 See **Details on `docker run` command** below for more information.
@@ -82,6 +76,16 @@ cd /workspace/catkin_ws/
 
 # Run catkin_make
 catkin_make
+```
+
+### Build the venv
+
+```bash
+# Navigate to the bind mount catkin_ws
+cd /workspace/catkin_ws/
+
+# Build the venv
+./src/amiga-ros-bridge/setup_venv.sh
 ```
 
 ### Add `venv` to `devel/setup.bash`
