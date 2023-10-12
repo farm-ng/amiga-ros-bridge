@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="amiga_ros_bridge" type="dummy_publisher.py" name="dummy_publishers" output="screen"/>
+</launch>

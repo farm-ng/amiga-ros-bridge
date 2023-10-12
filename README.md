@@ -121,6 +121,20 @@ TODO!
 
 ## Extra details / context
 
+### The `venv` is sourced correctly where it is built
+
+So if you setup / build the `venv` outside of the ROS docker container,
+it will not source properly for your rospy nodes.
+
+Likewise, if you setup / build the `venv` inside of the ROS docker container,
+it will not source properly outside of the docker container.
+
+> There is likely a solution to this, but it is not a pressing issue currently.
+
+Overall, this means if you are `pip install`-ing any packages,
+do so inside the ROS docker container with the `venv` sourced.
+
+
 ### Details on `docker run` command
 
 - `docker run`: This is the basic command to run a Docker container.

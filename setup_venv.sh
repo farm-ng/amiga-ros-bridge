@@ -20,6 +20,9 @@ source $DIR/venv/bin/activate
 pip install --upgrade pip
 pip install --upgrade setuptools wheel
 
+# Install requirements
+pip install -r requirements.txt
+
 # Install the submodule packages
 pip install -e farm-ng-core
 pip install --no-build-isolation -e farm-ng-amiga
