@@ -14,24 +14,41 @@
 from __future__ import annotations
 
 import rospy
+from farm_ng.core.event_client import EventClient
+from farm_ng.core.event_service_pb2 import SubscribeRequest
 from farmng_ros_conversions import farmng_path_to_ros_type
 from farmng_ros_conversions import farmng_to_ros_msg
 
 # public symbols
 __all__ = [
-    "subscribe",
+    "create_ros_publisher",
 ]
 
 
-async def subscribe(client, subscribe_request):
-    topic = f"/{client.config.name}{subscribe_request.uri.path}"
-    print(f"Creating ROS publisher for: {topic}")
+async def create_ros_publisher(
+    client: EventClient, subscribe_request: SubscribeRequest, publish_topic: str = ""
+):
+    """Create a ROS publisher for a given gRPC EventClient subscribe request.
+
+    Args:
+        client (EventClient): The EventClient connected to the farm-ng amiga service.
+        subscribe_request (SubscribeRequest): The subscription request for the farm-ng amiga service.
+        publish_topic (str, optional): The ROS topic to publish the farm-ng amiga service data to.
+            If not provided, the farm-ng subscription topic is used by default.
+    """
+
+    farm_ng_topic: str = f"/{client.config.name}{subscribe_request.uri.path}"
+    topic: str = publish_topic if publish_topic else farm_ng_topic
+
+    print(
+        f"Subscribing to farm-ng topic: {farm_ng_topic} and publishing on ROS topic: {topic}"
+    )
 
     ros_msg_type = farmng_path_to_ros_type(subscribe_request.uri)
     ros_publisher = rospy.Publisher(topic, ros_msg_type, queue_size=10)
 
     async for event, message in client.subscribe(subscribe_request, decode=True):
         # print(f"Got reply: {message}")
-        ros_msg = farmng_to_ros_msg(event.uri.path, message)
-        for msg in ros_msg:
+        ros_msgs = farmng_to_ros_msg(event, message)
+        for msg in ros_msgs:
             ros_publisher.publish(msg)

@@ -22,7 +22,7 @@ from farm_ng.core.event_client import EventClient
 from farm_ng.core.event_service_pb2 import EventServiceConfigList
 from farm_ng.core.event_service_pb2 import SubscribeRequest
 from farm_ng.core.events_file_reader import proto_from_json_file
-from farmng_ros_pipelines import subscribe
+from farmng_ros_pipelines import create_ros_publisher
 
 
 async def run(service_config: Path) -> None:
@@ -41,13 +41,13 @@ async def run(service_config: Path) -> None:
         else:
             subscriptions = config.subscriptions
 
-    # subscribe to all the services
+    # Create a ROS publisher for all the farm-ng service subscriptions
     tasks: list[asyncio.Task] = []
 
     for subscription in subscriptions:
         service_name = subscription.uri.query.split("=")[-1]
         service_tasks = asyncio.create_task(
-            subscribe(clients[service_name], subscription)
+            create_ros_publisher(clients[service_name], subscription)
         )
         tasks.append(service_tasks)
 
