@@ -13,9 +13,12 @@
 # limitations under the License.
 from __future__ import annotations
 
+import rospy
 from farm_ng.core import uri_pb2
 from farm_ng.core.event_pb2 import Event
-from geometry_msgs.msg import Twist
+from farm_ng.core.stamp import get_stamp_by_semantics_and_clock_type
+from farm_ng.core.stamp import StampSemantics
+from geometry_msgs.msg import TwistStamped
 from google.protobuf.any_pb2 import Any
 from sensor_msgs.msg import CompressedImage
 from sensor_msgs.msg import Imu
@@ -28,10 +31,30 @@ __all__ = [
 ]
 
 
+def farmng_stamp_to_ros_time(event: Event) -> rospy.Time:
+    """Convert a float timestamp to a ROS time.
+
+    Args:
+        event (float): The farm-ng event to extract the timestamp from.
+
+    Returns:
+        rospy.Time: The ROS time.
+    """
+    # unpack the stamp data
+    stamp: float = get_stamp_by_semantics_and_clock_type(
+        event, StampSemantics.DRIVER_RECEIVE, "monotonic"
+    )
+    if stamp is None:
+        raise ValueError(
+            f"Could not find DRIVER_RECEIVE timestamp for event with path: {event.uri.path}"
+        )
+    return rospy.Time.from_sec(stamp)
+
+
 def farmng_path_to_ros_type(uri: uri_pb2.Uri):
     """Map the farmng type to the ros type."""
     if "canbus" in uri.query and uri.path == "/twist":
-        return Twist
+        return TwistStamped
     elif "gps" in uri.query and uri.path == "/pvt":
         return NavSatFix
     elif "oak" in uri.query:
@@ -53,16 +76,26 @@ def farmng_to_ros_msg(event: Event, farmng_msg: Any) -> list:
     Returns:
         list: A list of converted ROS messages that correspond to the farm-ng event & message.
     """
+    service_name = event.uri.query.split("=")[-1]
+
     # parse Twist2d message
     if event.uri.path == "/twist":
-        ros_msg = Twist()
-        ros_msg.linear.x = farmng_msg.linear_velocity_x
-        ros_msg.linear.y = farmng_msg.linear_velocity_y
-        ros_msg.angular.z = farmng_msg.angular_velocity
+        ros_msg = TwistStamped()
+        # Unpack the stamp and frame_id data
+        ros_msg.header.stamp = farmng_stamp_to_ros_time(event)
+        ros_msg.header.frame_id = "robot"
+        # Unpack the farmng twist data
+        ros_msg.twist.linear.x = farmng_msg.linear_velocity_x
+        ros_msg.twist.linear.y = farmng_msg.linear_velocity_y
+        ros_msg.twist.angular.z = farmng_msg.angular_velocity
         return [ros_msg]
     # parse GPS pvt message
     elif event.uri.path == "/pvt":
         ros_msg = NavSatFix()
+        # Unpack the stamp and frame_id data
+        ros_msg.header.stamp = farmng_stamp_to_ros_time(event)
+        ros_msg.header.frame_id = "gps_antenna"
+        # Unpack the GPS data
         ros_msg.latitude = farmng_msg.latitude
         ros_msg.longitude = farmng_msg.longitude
         ros_msg.altitude = farmng_msg.altitude
@@ -72,9 +105,14 @@ def farmng_to_ros_msg(event: Event, farmng_msg: Any) -> list:
         ros_msgs = []
         for packet in farmng_msg.packets:
             ros_msg = Imu()
+            # Unpack the stamp and frame_id data
+            ros_msg.header.stamp = rospy.Time.from_sec(packet.gyro_packet.timestamp)
+            ros_msg.header.frame_id = f"{service_name}{event.uri.path}"
+            # Unpack the gyroscope data
             ros_msg.angular_velocity.x = packet.gyro_packet.gyro.x
             ros_msg.angular_velocity.y = packet.gyro_packet.gyro.y
             ros_msg.angular_velocity.z = packet.gyro_packet.gyro.z
+            # Unpack the accelerometer data
             ros_msg.linear_acceleration.x = packet.accelero_packet.accelero.x
             ros_msg.linear_acceleration.y = packet.accelero_packet.accelero.y
             ros_msg.linear_acceleration.z = packet.accelero_packet.accelero.z
@@ -83,6 +121,10 @@ def farmng_to_ros_msg(event: Event, farmng_msg: Any) -> list:
     # parse Oak Compressed Image message
     elif event.uri.path in ["/left", "/right", "/rgb", "/disparity"]:
         ros_msg = CompressedImage()
+        # Unpack the stamp and frame_id data
+        ros_msg.header.stamp = farmng_stamp_to_ros_time(event)
+        ros_msg.header.frame_id = f"{service_name}{event.uri.path}"
+        # Unpack the image data
         ros_msg.format = "jpeg"
         ros_msg.data = farmng_msg.image_data
         return [ros_msg]
