@@ -27,6 +27,7 @@ from sensor_msgs.msg import NavSatFix
 # public symbols
 __all__ = [
     "farmng_path_to_ros_type",
+    "farmng_stamp_to_ros_time",
     "farmng_to_ros_msg",
 ]
 
@@ -41,7 +42,7 @@ def farmng_stamp_to_ros_time(event: Event) -> rospy.Time:
         rospy.Time: The ROS time.
     """
     # unpack the stamp data
-    stamp: float = get_stamp_by_semantics_and_clock_type(
+    stamp: float | None = get_stamp_by_semantics_and_clock_type(
         event, StampSemantics.DRIVER_RECEIVE, "monotonic"
     )
     if stamp is None:
@@ -52,7 +53,15 @@ def farmng_stamp_to_ros_time(event: Event) -> rospy.Time:
 
 
 def farmng_path_to_ros_type(uri: uri_pb2.Uri):
-    """Map the farmng type to the ros type."""
+    """Map the farmng message type to the corresponding ROS message type.
+
+    Args:
+        uri (uri_pb2.Uri): The farmng URI representing the message type.
+
+    Returns:
+        type: The ROS message type corresponding to the farmng message type.
+    """
+
     if "canbus" in uri.query and uri.path == "/twist":
         return TwistStamped
     elif "gps" in uri.query and uri.path == "/pvt":
@@ -76,7 +85,7 @@ def farmng_to_ros_msg(event: Event, farmng_msg: Any) -> list:
     Returns:
         list: A list of converted ROS messages that correspond to the farm-ng event & message.
     """
-    service_name = event.uri.query.split("=")[-1]
+    service_name: str = event.uri.query.split("=")[-1]
 
     # parse Twist2d message
     if event.uri.path == "/twist":
