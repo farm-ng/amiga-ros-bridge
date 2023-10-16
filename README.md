@@ -1,5 +1,41 @@
 # amiga-ros-bridge
 
+## Test the ros bridge
+
+### Twist control
+
+> WARNING: When the dashboard is in auto mode, this will cause the Amiga to drive.
+> Make sure the area is clear before using this.
+>
+> You can also test this by sending the commands when the Amiga dashboard
+> is not in AUTO READY or AUTO ACTIVE and see the commands being sent with
+> the red needle on the auto page.
+
+You can publish `Twist` commands to the ROS bridge on the `/amiga/cmd_vel` topic with the [`rqt_robot_steering`](http://wiki.ros.org/rqt_robot_steering) package.
+
+Install `rqt_robot_steering`, if needed:
+
+```bash
+source ~/catkin_ws/devel/setup.bash
+sudo apt-get install ros-noetic-rqt-robot-steering
+pip install PyQt5 PySide2
+```
+
+Run from your terminal:
+
+```bash
+source ~/catkin_ws/devel/setup.bash
+rosrun rqt_robot_steering rqt_robot_steering
+# Then change the topic to `/amiga/cmd_vel`
+```
+
+You can subscribe to measured `TwistStamped` states of the amiga with ROS command line tools.
+
+```bash
+source ~/catkin_ws/devel/setup.bash
+rostopic echo /amiga/vel
+```
+
 ## Setup
 
 These instructions are for installing the amiga-ros-bridge
