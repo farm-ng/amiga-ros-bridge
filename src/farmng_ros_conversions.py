@@ -14,7 +14,9 @@
 from __future__ import annotations
 
 from farm_ng.core import uri_pb2
+from farm_ng.core.event_pb2 import Event
 from geometry_msgs.msg import Twist
+from google.protobuf.any_pb2 import Any
 from sensor_msgs.msg import CompressedImage
 from sensor_msgs.msg import Imu
 from sensor_msgs.msg import NavSatFix
@@ -41,24 +43,32 @@ def farmng_path_to_ros_type(uri: uri_pb2.Uri):
     raise NotImplementedError(f"Unknown farmng message type: {uri}")
 
 
-def farmng_to_ros_msg(uri_path: str, farmng_msg):
-    """Convert the farmng message to the ros message."""
+def farmng_to_ros_msg(event: Event, farmng_msg: Any) -> list:
+    """Convert a farm-ng event & message to a ROS message.
+
+    Args:
+        event (Event): The event data associated with the farm-ng message.
+        farmng_msg (Any): The farm-ng message to be converted, wrapped in a google.protobuf.Any message.
+
+    Returns:
+        list: A list of converted ROS messages that correspond to the farm-ng event & message.
+    """
     # parse Twist2d message
-    if uri_path == "/twist":
+    if event.uri.path == "/twist":
         ros_msg = Twist()
         ros_msg.linear.x = farmng_msg.linear_velocity_x
         ros_msg.linear.y = farmng_msg.linear_velocity_y
         ros_msg.angular.z = farmng_msg.angular_velocity
         return [ros_msg]
     # parse GPS pvt message
-    elif uri_path == "/pvt":
+    elif event.uri.path == "/pvt":
         ros_msg = NavSatFix()
         ros_msg.latitude = farmng_msg.latitude
         ros_msg.longitude = farmng_msg.longitude
         ros_msg.altitude = farmng_msg.altitude
         return [ros_msg]
     # parse Oak IMU message
-    elif uri_path == "/imu":
+    elif event.uri.path == "/imu":
         ros_msgs = []
         for packet in farmng_msg.packets:
             ros_msg = Imu()
@@ -71,10 +81,10 @@ def farmng_to_ros_msg(uri_path: str, farmng_msg):
             ros_msgs.append(ros_msg)
         return ros_msgs
     # parse Oak Compressed Image message
-    elif uri_path in ["/left", "/right", "/rgb", "/disparity"]:
+    elif event.uri.path in ["/left", "/right", "/rgb", "/disparity"]:
         ros_msg = CompressedImage()
         ros_msg.format = "jpeg"
         ros_msg.data = farmng_msg.image_data
         return [ros_msg]
 
-    raise NotImplementedError(f"Unknown farmng message type: {uri_path}")
+    raise NotImplementedError(f"Unknown farmng message type at path: {event.uri.path}")
