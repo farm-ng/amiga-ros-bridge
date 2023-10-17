@@ -1,6 +1,6 @@
 # amiga-ros-bridge
 
-## Test the ros bridge
+## Use the ros bridge
 
 ### Twist control
 
@@ -11,7 +11,29 @@
 > is not in AUTO READY or AUTO ACTIVE and see the commands being sent with
 > the red needle on the auto page.
 
-You can publish `TwistStamped` commands to the ROS bridge on the `/amiga/cmd_vel` topic with the `examples/twist_wasd.py` example.
+You can use the `twist_control` node to command the Amiga robot with `TwistStamped` messages.
+This bridge node will forward your `TwistStamped` messages published on the `/amiga/cmd_vel` topic
+to the canbus service to drive the amiga.
+
+To run the `twist_control` bridge:
+
+```bash
+source ~/catkin_ws/devel/setup.bash
+roslaunch amiga_ros_bridge twist_control.launch
+```
+
+You can also subscribe to measured `TwistStamped` states of the amiga with ROS command line tools.
+
+```bash
+source ~/catkin_ws/devel/setup.bash
+rostopic echo /amiga/vel
+```
+
+#### Use the `twist_wasd.py` example
+
+To test the `twist_control` node of the `amiga-ros-bridge`,
+you can publish `TwistStamped` commands to the ROS bridge on the
+`/amiga/cmd_vel` topic with the `examples/twist_wasd.py` example.
 
 > To successfully run this example, you must use your local PC,
 > as the example won't work if executed directly from an Amiga brain
@@ -22,13 +44,6 @@ Run from your terminal:
 ```bash
 source ~/catkin_ws/devel/setup.bash
 rosrun amiga_ros_bridge examples/twist_wasd.py
-```
-
-You can subscribe to measured `TwistStamped` states of the amiga with ROS command line tools.
-
-```bash
-source ~/catkin_ws/devel/setup.bash
-rostopic echo /amiga/vel
 ```
 
 ## Setup
