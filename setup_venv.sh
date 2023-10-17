@@ -7,7 +7,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $DIR
 
 # Create the virtual environment
-apt update && apt install python3.8-venv -y
+sudo apt update && sudo apt install python3.8-venv -y
 python3 -m venv $DIR/venv
 
 # Source the virtual environment

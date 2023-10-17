@@ -1,9 +1,55 @@
 # amiga-ros-bridge
 
+## Use the ros bridge
+
+### Twist control
+
+> WARNING: When the dashboard is in auto mode, this will cause the Amiga to drive.
+> Make sure the area is clear before using this.
+>
+> You can also test this by sending the commands when the Amiga dashboard
+> is not in AUTO READY or AUTO ACTIVE and see the commands being sent with
+> the red needle on the auto page.
+
+You can use the `twist_control` node to command the Amiga robot with `TwistStamped` messages.
+This bridge node will forward your `TwistStamped` messages published on the `/amiga/cmd_vel` topic
+to the canbus service to drive the amiga.
+
+To run the `twist_control` bridge:
+
+```bash
+source ~/catkin_ws/devel/setup.bash
+roslaunch amiga_ros_bridge twist_control.launch
+```
+
+You can also subscribe to measured `TwistStamped` states of the amiga with ROS command line tools.
+
+```bash
+source ~/catkin_ws/devel/setup.bash
+rostopic echo /amiga/vel
+```
+
+#### Use the `twist_wasd.py` example
+
+To test the `twist_control` node of the `amiga-ros-bridge`,
+you can publish `TwistStamped` commands to the ROS bridge on the
+`/amiga/cmd_vel` topic with the `examples/twist_wasd.py` example.
+
+> To successfully run this example, you must use your local PC,
+> as the example won't work if executed directly from an Amiga brain
+> (because of the opencv popup window).
+
+Run from your terminal:
+
+```bash
+source ~/catkin_ws/devel/setup.bash
+rosrun amiga_ros_bridge examples/twist_wasd.py
+```
+
 ## Setup
 
 These instructions are for installing the amiga-ros-bridge
-on Amiga brains running the Amiga OS 2.0.
+on Amiga brains running the Amiga OS 2.0
 
 For Amiga brains running Amiga OS `1.0` - `1.3`,
 please refer to
