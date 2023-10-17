@@ -3,7 +3,7 @@
 > WARNING: These are experimental instructions and that do NOT
 > reflect the recommended workflow for running the `amiga-ros-bridge`.
 >
-> Refer back to the main [`README.md`](/README.md) for the recommended `amiga-ros-bridge` workflow.
+> Refer back to the main [`README.md`](https://github.com/farm-ng/amiga-ros-bridge#readme) for the recommended `amiga-ros-bridge` workflow.
 
 These instructions are for installing the `amiga-ros-bridge` directly
 on Amiga brains running the **Amiga OS 2.0** inside of a docker container.
@@ -118,7 +118,7 @@ the `amiga-ros-bridge/venv/` will also be sourced.
 
 ## Run the amiga-ros-bridge
 
-> NOTE: Refer to the main [`README.md`](/README.md) for the up-to-date instructions for running the `amiga-ros-bridge`.
+> NOTE: Refer to the main [`README.md`](https://github.com/farm-ng/amiga-ros-bridge#readme) for the up-to-date instructions for running the `amiga-ros-bridge`.
 
 You can now launch one of the `amiga-ros-bridge` nodes. For example:
 
