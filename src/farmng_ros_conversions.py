@@ -270,10 +270,10 @@ def FilterState_to_Odometry(filter_state: FilterState, event: Event) -> Odometry
     """Converts a farm-ng FilterState message, and corresponding event, to a ROS Odometry message.
 
     Args:
-        gps_frame (GpsFrame): The farm-ng GpsFrame message to be converted.
+        filter_state (FilterState): The farm-ng FilterState message to be converted.
         event (Event): The event data associated with the farm-ng message.
     Returns:
-        NavSatFix: The ROS NavSatFix message.
+        Odometry: The ROS Odometry message.
     """
     odometry: Odometry = Odometry()
     # Unpack the stamp and frame_id data
@@ -306,7 +306,7 @@ def uncertainties_to_covariance_matrix(uncertainties: list[float]) -> list[float
     representing the covariance matrix in row-major order.
 
     Args:
-        uncertainties (list[float]): The list of uncertainties (the std. dev of the covariance matrix diagonal).
+        uncertainties (list[float]): The list of uncertainties (the std. dev values of the covariance matrix diagonal).
     Returns:
         list[float]: The list of floats representing the covariance matrix in row-major order.
     """
