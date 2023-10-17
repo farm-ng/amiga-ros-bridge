@@ -68,8 +68,8 @@ if __name__ == "__main__":
     try:
         # start the ros node
         loop = asyncio.get_event_loop()
-        rospy.init_node("amiga_bridge_node")
-        rospy.loginfo("amiga_bridge_node started!")
+        rospy.init_node("amiga_streams_node")
+        rospy.loginfo("amiga_streams_node started!")
         loop.run_until_complete(run(service_config))
     except rospy.ROSInterruptException:
         pass
