@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="amiga_ros_bridge" type="amiga_streams.py" name="amiga_streams" output="screen"/>
+</launch>
