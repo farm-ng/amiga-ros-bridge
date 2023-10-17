@@ -11,22 +11,17 @@
 > is not in AUTO READY or AUTO ACTIVE and see the commands being sent with
 > the red needle on the auto page.
 
-You can publish `Twist` commands to the ROS bridge on the `/amiga/cmd_vel` topic with the [`rqt_robot_steering`](http://wiki.ros.org/rqt_robot_steering) package.
+You can publish `TwistStamped` commands to the ROS bridge on the `/amiga/cmd_vel` topic with the `examples/twist_wasd.py` example.
 
-Install `rqt_robot_steering`, if needed:
-
-```bash
-source ~/catkin_ws/devel/setup.bash
-sudo apt-get install ros-noetic-rqt-robot-steering
-pip install PyQt5 PySide2
-```
+> To successfully run this example, you must use your local PC,
+> as the example won't work if executed directly from an Amiga brain
+> (because of the opencv popup window).
 
 Run from your terminal:
 
 ```bash
 source ~/catkin_ws/devel/setup.bash
-rosrun rqt_robot_steering rqt_robot_steering
-# Then change the topic to `/amiga/cmd_vel`
+rosrun amiga_ros_bridge examples/twist_wasd.py
 ```
 
 You can subscribe to measured `TwistStamped` states of the amiga with ROS command line tools.
@@ -39,7 +34,7 @@ rostopic echo /amiga/vel
 ## Setup
 
 These instructions are for installing the amiga-ros-bridge
-on Amiga brains running the Amiga OS 2.0.
+on Amiga brains running the Amiga OS 2.0
 
 For Amiga brains running Amiga OS `1.0` - `1.3`,
 please refer to

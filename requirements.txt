@@ -1,2 +1,3 @@
 pyyaml
 rospkg
+opencv-python

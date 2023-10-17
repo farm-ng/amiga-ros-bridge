@@ -24,18 +24,19 @@ from farm_ng.core.event_service_pb2 import EventServiceConfigList
 from farm_ng.core.event_service_pb2 import SubscribeRequest
 from farm_ng.core.events_file_reader import proto_from_json_file
 from farmng_ros_pipelines import create_ros_publisher
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import TwistStamped
 
 
-def cmd_vel_callback(data, client: EventClient, queue: asyncio.Queue) -> None:
+def cmd_vel_callback(twist_Stamped, client: EventClient, queue: asyncio.Queue) -> None:
     twist: Twist2d = Twist2d()
-    twist.linear_velocity_x = data.linear.x
-    twist.linear_velocity_y = data.linear.y
-    twist.angular_velocity = data.angular.z
+    twist.linear_velocity_x = twist_Stamped.twist.linear.x
+    twist.linear_velocity_y = twist_Stamped.twist.linear.y
+    twist.angular_velocity = twist_Stamped.twist.angular.z
     try:
         queue.put_nowait(twist)
     except asyncio.QueueFull:
-        rospy.logwarn("Queue is full, dropping message")
+        # rospy.logwarn("Queue is full, dropping message")
+        pass
 
 
 async def command_task(client: EventClient, queue: asyncio.Queue) -> None:
@@ -62,7 +63,7 @@ async def run(service_config: Path) -> None:
 
     rospy.Subscriber(
         "/amiga/cmd_vel",
-        Twist,
+        TwistStamped,
         lambda data: cmd_vel_callback(data, clients.get("canbus"), queue),
     )
 
@@ -70,7 +71,7 @@ async def run(service_config: Path) -> None:
     tasks: list[asyncio.Task] = []
 
     # Queue of Twist2d messages to send to the canbus service
-    queue: asyncio.Queue = asyncio.Queue(maxsize=3)
+    queue: asyncio.Queue = asyncio.Queue(maxsize=1)
 
     # Set up the tasks
     for subscription in subscriptions:
