@@ -15,10 +15,20 @@ from __future__ import annotations
 
 import numpy as np
 import rospy
+from farm_ng.canbus.canbus_pb2 import Twist2d
 from farm_ng.core import uri_pb2
 from farm_ng.core.event_pb2 import Event
+from farm_ng.core.lie_pb2 import Isometry3F64
+from farm_ng.core.lie_pb2 import Isometry3F64Tangent
 from farm_ng.core.stamp import get_stamp_by_semantics_and_clock_type
 from farm_ng.core.stamp import StampSemantics
+from farm_ng.filter.filter_pb2 import FilterState
+from farm_ng.gps.gps_pb2 import GpsFrame
+from farm_ng.oak.oak_pb2 import OakFrame
+from farm_ng.oak.oak_pb2 import OakImuPacket
+from farm_ng.oak.oak_pb2 import OakImuPackets
+from geometry_msgs.msg import Pose as PoseRos
+from geometry_msgs.msg import Twist
 from geometry_msgs.msg import TwistStamped
 from google.protobuf.any_pb2 import Any
 from nav_msgs.msg import Odometry
@@ -95,127 +105,254 @@ def farmng_to_ros_msg(event: Event, farmng_msg: Any) -> list:
     Returns:
         list: A list of converted ROS messages that correspond to the farm-ng event & message.
     """
+    # parse Twist2d message
+    if isinstance(farmng_msg, Twist2d):
+        return [Twist2d_to_TwistStamped(farmng_msg, event)]
+    # parse state estimation filter state
+    elif isinstance(farmng_msg, FilterState):
+        return [FilterState_to_Odometry(farmng_msg, event)]
+    # parse GPS pvt message
+    elif isinstance(farmng_msg, GpsFrame):
+        return [GpsFrame_to_NavSatFix(farmng_msg, event)]
+    # parse Oak IMU message
+    elif isinstance(farmng_msg, OakImuPackets):
+        return OakImuPackets_to_Imus(farmng_msg, event)
+    # parse Oak Compressed Image message
+    elif isinstance(farmng_msg, OakFrame):
+        return [OakFrame_to_CompressedImage(farmng_msg, event)]
+
+    raise NotImplementedError(
+        f"Unknown farmng message: {type(farmng_msg)} at path: {event.uri.path}"
+    )
+
+
+def Twist2d_to_TwistStamped(twist2d: Twist2d, event: Event) -> TwistStamped:
+    """Converts a farm-ng Twist2d message, and corresponding event, to a ROS TwistStamped message.
+
+    Args:
+        twist2d (Twist2d): The farm-ng Twist2d message to be converted.
+        event (Event): The event data associated with the farm-ng message.
+    Returns:
+        TwistStamped: The ROS TwistStamped message.
+    """
+    if not isinstance(twist2d, Twist2d):
+        raise TypeError(f"Expected canbus_pb2.Twist2d, received {type(twist2d)}")
+
+    twist_stamped = TwistStamped()
+    # Unpack the stamp and frame_id data
+    twist_stamped.header.stamp = farmng_stamp_to_ros_time(event)
+    twist_stamped.header.frame_id = "robot"
+    # Unpack the farmng twist data
+    twist_stamped.twist = Twist2d_to_Twist(twist2d)
+    return twist_stamped
+
+
+def Twist2d_to_Twist(twist2d: Twist2d) -> Twist:
+    """Converts a farm-ng Twist2d message to a ROS Twist message.
+
+    Args:
+        twist2d (Twist2d): The farm-ng Twist2d message to be converted.
+    Returns:
+        Twist: The ROS Twist message.
+    """
+    if not isinstance(twist2d, Twist2d):
+        raise TypeError(f"Expected canbus_pb2.Twist2d, received {type(twist2d)}")
+    twist = Twist()
+    # Unpack the farmng twist data
+    twist.linear.x = twist2d.linear_velocity_x
+    twist.linear.y = twist2d.linear_velocity_y
+    twist.angular.z = twist2d.angular_velocity
+    return twist
+
+
+def OakFrame_to_CompressedImage(oak_frame: OakFrame, event: Event) -> CompressedImage:
+    """Converts a farm-ng OakFrame message, and corresponding event, to a ROS CompressedImage message.
+
+    Args:
+        oak_frame (OakFrame): The farm-ng OakFrame message to be converted.
+        event (Event): The event data associated with the farm-ng message.
+    Returns:
+        CompressedImage: The ROS CompressedImage message.
+    """
+    if not isinstance(oak_frame, OakFrame):
+        raise TypeError(f"Expected oak_pb2.OakFrame, received {type(oak_frame)}")
+
+    # Name of the service (which is also the camera name)
     service_name: str = event.uri.query.split("=")[-1]
 
-    # parse Twist2d message
-    if event.uri.path == "/twist":
-        ros_msg = TwistStamped()
-        # Unpack the stamp and frame_id data
-        ros_msg.header.stamp = farmng_stamp_to_ros_time(event)
-        ros_msg.header.frame_id = "robot"
-        # Unpack the farmng twist data
-        ros_msg.twist.linear.x = farmng_msg.linear_velocity_x
-        ros_msg.twist.linear.y = farmng_msg.linear_velocity_y
-        ros_msg.twist.angular.z = farmng_msg.angular_velocity
-        return [ros_msg]
-    # parse state estimation filter state
-    elif event.uri.path == "/state":
-        # print(farmng_msg)
-        ros_msg = Odometry()
-        # Unpack the stamp and frame_id data
-        ros_msg.header.stamp = farmng_stamp_to_ros_time(event)
-        ros_msg.header.frame_id = farmng_msg.pose.frame_b
-        ros_msg.child_frame_id = farmng_msg.pose.frame_b
-        # Unpack the Pose
-        ros_msg.pose.pose.position.x = farmng_msg.pose.a_from_b.translation.x
-        ros_msg.pose.pose.position.y = farmng_msg.pose.a_from_b.translation.y
-        ros_msg.pose.pose.position.z = farmng_msg.pose.a_from_b.translation.z
-        ros_msg.pose.pose.orientation.x = (
-            farmng_msg.pose.a_from_b.rotation.unit_quaternion.imag.x
-        )
-        ros_msg.pose.pose.orientation.y = (
-            farmng_msg.pose.a_from_b.rotation.unit_quaternion.imag.y
-        )
-        ros_msg.pose.pose.orientation.z = (
-            farmng_msg.pose.a_from_b.rotation.unit_quaternion.imag.z
-        )
-        ros_msg.pose.pose.orientation.w = (
-            farmng_msg.pose.a_from_b.rotation.unit_quaternion.real
-        )
-        # Unpack the Twist
-        ros_msg.twist.twist.linear.x = (
-            farmng_msg.pose.tangent_of_b_in_a.linear_velocity.x
-        )
-        ros_msg.twist.twist.linear.y = (
-            farmng_msg.pose.tangent_of_b_in_a.linear_velocity.y
-        )
-        ros_msg.twist.twist.linear.z = (
-            farmng_msg.pose.tangent_of_b_in_a.linear_velocity.z
-        )
-        ros_msg.twist.twist.angular.x = (
-            farmng_msg.pose.tangent_of_b_in_a.angular_velocity.x
-        )
-        ros_msg.twist.twist.angular.y = (
-            farmng_msg.pose.tangent_of_b_in_a.angular_velocity.y
-        )
-        ros_msg.twist.twist.angular.z = (
-            farmng_msg.pose.tangent_of_b_in_a.angular_velocity.z
+    compressed_img = CompressedImage()
+    # Unpack the stamp and frame_id data
+    compressed_img.header.stamp = farmng_stamp_to_ros_time(event)
+    compressed_img.header.frame_id = f"{service_name}{event.uri.path}"
+    # Unpack the image data
+    compressed_img.format = "jpeg"
+    compressed_img.data = oak_frame.image_data
+    return compressed_img
+
+
+def OakImuPacket_to_Imu(oak_imu_packet: OakImuPacket, event: Event) -> Imu:
+    """Converts a farm-ng OakImuPacket message, and corresponding event, to a ROS Imu message.
+
+    Args:
+        oak_imu_packet (OakImuPacket): The farm-ng OakImuPacket message to be converted.
+        event (Event): The event data associated with the farm-ng message.
+    Returns:
+        Imu: The ROS Imu message.
+    """
+    if not isinstance(oak_imu_packet, OakImuPacket):
+        raise TypeError(
+            f"Expected oak_pb2.OakImuPacket, received {type(oak_imu_packet)}"
         )
 
-        # Unpack the covariance
-        std_pos_lin_x = farmng_msg.uncertainty_diagonal.data[0]
-        std_pos_lin_y = farmng_msg.uncertainty_diagonal.data[1]
-        std_pos_ang_z = farmng_msg.uncertainty_diagonal.data[2]
-        std_vel_lin_x = farmng_msg.uncertainty_diagonal.data[3]
-        std_vel_ang_z = farmng_msg.uncertainty_diagonal.data[4]
-        ros_msg.pose.covariance = (
-            np.diag(
-                [
-                    std_pos_lin_x**2,
-                    std_pos_lin_y**2,
-                    0.0,
-                    0.0,
-                    0.0,
-                    std_pos_ang_z**2,
-                ]
-            )
-            .flatten()
-            .tolist()
-        )
-        ros_msg.twist.covariance = (
-            np.diag([std_vel_lin_x**2, 0.0, 0.0, 0.0, 0.0, std_vel_ang_z**2])
-            .flatten()
-            .tolist()
-        )
-        return [ros_msg]
-    # parse GPS pvt message
-    elif event.uri.path == "/pvt":
-        ros_msg = NavSatFix()
-        # Unpack the stamp and frame_id data
-        ros_msg.header.stamp = farmng_stamp_to_ros_time(event)
-        ros_msg.header.frame_id = "gps_antenna"
-        # Unpack the GPS data
-        ros_msg.latitude = farmng_msg.latitude
-        ros_msg.longitude = farmng_msg.longitude
-        ros_msg.altitude = farmng_msg.altitude
-        return [ros_msg]
-    # parse Oak IMU message
-    elif event.uri.path == "/imu":
-        ros_msgs = []
-        for packet in farmng_msg.packets:
-            ros_msg = Imu()
-            # Unpack the stamp and frame_id data
-            ros_msg.header.stamp = rospy.Time.from_sec(packet.gyro_packet.timestamp)
-            ros_msg.header.frame_id = f"{service_name}{event.uri.path}"
-            # Unpack the gyroscope data
-            ros_msg.angular_velocity.x = packet.gyro_packet.gyro.x
-            ros_msg.angular_velocity.y = packet.gyro_packet.gyro.y
-            ros_msg.angular_velocity.z = packet.gyro_packet.gyro.z
-            # Unpack the accelerometer data
-            ros_msg.linear_acceleration.x = packet.accelero_packet.accelero.x
-            ros_msg.linear_acceleration.y = packet.accelero_packet.accelero.y
-            ros_msg.linear_acceleration.z = packet.accelero_packet.accelero.z
-            ros_msgs.append(ros_msg)
-        return ros_msgs
-    # parse Oak Compressed Image message
-    elif event.uri.path in ["/left", "/right", "/rgb", "/disparity"]:
-        ros_msg = CompressedImage()
-        # Unpack the stamp and frame_id data
-        ros_msg.header.stamp = farmng_stamp_to_ros_time(event)
-        ros_msg.header.frame_id = f"{service_name}{event.uri.path}"
-        # Unpack the image data
-        ros_msg.format = "jpeg"
-        ros_msg.data = farmng_msg.image_data
-        return [ros_msg]
+    # Name of the service (which is also the camera name)
+    service_name: str = event.uri.query.split("=")[-1]
 
-    raise NotImplementedError(f"Unknown farmng message type at path: {event.uri.path}")
+    imu_ros = Imu()
+    # Unpack the stamp and frame_id data
+    imu_ros.header.stamp = rospy.Time.from_sec(oak_imu_packet.gyro_packet.timestamp)
+    imu_ros.header.frame_id = f"{service_name}{event.uri.path}"
+    # Unpack the gyroscope data
+    imu_ros.angular_velocity.x = oak_imu_packet.gyro_packet.gyro.x
+    imu_ros.angular_velocity.y = oak_imu_packet.gyro_packet.gyro.y
+    imu_ros.angular_velocity.z = oak_imu_packet.gyro_packet.gyro.z
+    # Unpack the accelerometer data
+    imu_ros.linear_acceleration.x = oak_imu_packet.accelero_packet.accelero.x
+    imu_ros.linear_acceleration.y = oak_imu_packet.accelero_packet.accelero.y
+    imu_ros.linear_acceleration.z = oak_imu_packet.accelero_packet.accelero.z
+    return imu_ros
+
+
+def OakImuPackets_to_Imus(oak_imu_packets: OakImuPackets, event: Event) -> list[Imu]:
+    """Converts a farm-ng OakImuPackets message, and corresponding event, to list of ROS Imu messages.
+
+    Args:
+        oak_imu_packets (OakImuPackets): The farm-ng OakImuPackets message to be converted.
+        event (Event): The event data associated with the farm-ng message.
+    Returns:
+        list[Imu]: The list of ROS Imu messages.
+    """
+    if not isinstance(oak_imu_packets, OakImuPackets):
+        raise TypeError(
+            f"Expected oak_pb2.OakImuPackets, received {type(oak_imu_packets)}"
+        )
+
+    ros_imu_msgs = []
+    # Iterate over the OakImuPacket messages
+    for packet in oak_imu_packets.packets:
+        ros_imu_msgs.append(OakImuPacket_to_Imu(packet, event))
+    return ros_imu_msgs
+
+
+def GpsFrame_to_NavSatFix(gps_frame: GpsFrame, event: Event) -> NavSatFix:
+    """Converts a farm-ng GpsFrame message, and corresponding event, to a ROS NavSatFix message.
+
+    Args:
+        gps_frame (GpsFrame): The farm-ng GpsFrame message to be converted.
+        event (Event): The event data associated with the farm-ng message.
+    Returns:
+        NavSatFix: The ROS NavSatFix message.
+    """
+    if not isinstance(gps_frame, GpsFrame):
+        raise TypeError(f"Expected gps_pb2.GpsFrame, received {type(gps_frame)}")
+
+    nav_sat_fix = NavSatFix()
+    # Unpack the stamp and frame_id data
+    nav_sat_fix.header.stamp = farmng_stamp_to_ros_time(event)
+    nav_sat_fix.header.frame_id = "gps_antenna"
+    # Unpack the GPS data
+    nav_sat_fix.latitude = gps_frame.latitude
+    nav_sat_fix.longitude = gps_frame.longitude
+    nav_sat_fix.altitude = gps_frame.altitude
+
+    return nav_sat_fix
+
+
+def FilterState_to_Odometry(filter_state: FilterState, event: Event) -> Odometry:
+    """Converts a farm-ng FilterState message, and corresponding event, to a ROS Odometry message.
+
+    Args:
+        gps_frame (GpsFrame): The farm-ng GpsFrame message to be converted.
+        event (Event): The event data associated with the farm-ng message.
+    Returns:
+        NavSatFix: The ROS NavSatFix message.
+    """
+    odometry = Odometry()
+    # Unpack the stamp and frame_id data
+    odometry.header.stamp = farmng_stamp_to_ros_time(event)
+    odometry.header.frame_id = filter_state.pose.frame_b
+    odometry.child_frame_id = filter_state.pose.frame_b
+    # Unpack the Pose
+    odometry.pose.pose = Isometry3F64_to_PoseRos(filter_state.pose.a_from_b)
+    # Unpack the Twist
+    odometry.twist.twist = Isometry3F64Tangent_to_Twist(
+        filter_state.pose.tangent_of_b_in_a
+    )
+
+    # Unpack the covariance
+    std_pos_lin_x = filter_state.uncertainty_diagonal.data[0]
+    std_pos_lin_y = filter_state.uncertainty_diagonal.data[1]
+    std_pos_ang_z = filter_state.uncertainty_diagonal.data[2]
+    std_vel_lin_x = filter_state.uncertainty_diagonal.data[3]
+    std_vel_ang_z = filter_state.uncertainty_diagonal.data[4]
+    odometry.pose.covariance = uncertainties_to_covariance_matrix(
+        [std_pos_lin_x, std_pos_lin_y, 0.0, 0.0, 0.0, std_pos_ang_z]
+    )
+    odometry.twist.covariance = uncertainties_to_covariance_matrix(
+        [std_vel_lin_x, 0.0, 0.0, 0.0, 0.0, std_vel_ang_z]
+    )
+    return odometry
+
+
+def uncertainties_to_covariance_matrix(uncertainties: list[float]) -> list[float]:
+    """Packages a list of uncertainties (the std. dev of the covariance matrix diagonal) into a list of floats
+    representing the covariance matrix in row-major order.
+
+    Args:
+        uncertainties (list[float]): The list of uncertainties (the std. dev of the covariance matrix diagonal).
+    Returns:
+        list[float]: The list of floats representing the covariance matrix in row-major order.
+    """
+    return np.diag([x**2 for x  in uncertainties]).flatten().tolist()
+
+
+def Isometry3F64_to_PoseRos(a_from_b: Isometry3F64) -> PoseRos:
+    """Converts a farm-ng Isometry3F64 message, to a ROS Pose message.
+
+    Args:
+        a_from_b (Isometry3F64): The farm-ng Isometry3F64 proto message to be converted.
+    Returns:
+        PoseRos: The ROS Pose message.
+    """
+    if not isinstance(a_from_b, Isometry3F64):
+        raise TypeError(f"Expected lie_pb2.Isometry3F64, received {type(a_from_b)}")
+
+    pose_ros = PoseRos()
+    pose_ros.position.x = a_from_b.translation.x
+    pose_ros.position.y = a_from_b.translation.y
+    pose_ros.position.z = a_from_b.translation.z
+    pose_ros.orientation.x = a_from_b.rotation.unit_quaternion.imag.x
+    pose_ros.orientation.y = a_from_b.rotation.unit_quaternion.imag.y
+    pose_ros.orientation.z = a_from_b.rotation.unit_quaternion.imag.z
+    pose_ros.orientation.w = a_from_b.rotation.unit_quaternion.real
+    return pose_ros
+
+
+def Isometry3F64Tangent_to_Twist(tangent_of_b_in_a: Isometry3F64Tangent) -> Twist:
+    """Converts a farm-ng Isometry3F64Tangent message, to a ROS Twist message.
+
+    Args:
+        tangent_of_b_in_a (Isometry3F64Tangent): The farm-ng Isometry3F64Tangent message to be converted.
+    Returns:
+        Twist: The ROS Twist message.
+    """
+    if not isinstance(tangent_of_b_in_a, Isometry3F64Tangent):
+        raise TypeError(f"Expected pose_pb2.Pose, received {type(tangent_of_b_in_a)}")
+
+    twist = Twist()
+    twist.linear.x = tangent_of_b_in_a.linear_velocity.x
+    twist.linear.y = tangent_of_b_in_a.linear_velocity.y
+    twist.linear.z = tangent_of_b_in_a.linear_velocity.z
+    twist.angular.x = tangent_of_b_in_a.angular_velocity.x
+    twist.angular.y = tangent_of_b_in_a.angular_velocity.y
+    twist.angular.z = tangent_of_b_in_a.angular_velocity.z
+    return twist
