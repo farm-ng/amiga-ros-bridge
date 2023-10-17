@@ -16,6 +16,11 @@
             "host": "localhost"
         },
         {
+            "name": "filter",
+            "port": 20001,
+            "host": "localhost"
+        },
+        {
             "name": "amiga_subscriptions",
             "subscriptions": [
                 {
@@ -43,6 +48,13 @@
                     "uri": {
                         "path": "/left",
                         "query": "service_name=oak0"
+                    },
+                    "every_n": 1
+                },
+                {
+                    "uri": {
+                        "path": "/state",
+                        "query": "service_name=filter"
                     },
                     "every_n": 1
                 }

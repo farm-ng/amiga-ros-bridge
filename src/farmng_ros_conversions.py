@@ -13,6 +13,7 @@
 # limitations under the License.
 from __future__ import annotations
 
+import numpy as np
 import rospy
 from farm_ng.core import uri_pb2
 from farm_ng.core.event_pb2 import Event
@@ -20,6 +21,7 @@ from farm_ng.core.stamp import get_stamp_by_semantics_and_clock_type
 from farm_ng.core.stamp import StampSemantics
 from geometry_msgs.msg import TwistStamped
 from google.protobuf.any_pb2 import Any
+from nav_msgs.msg import Odometry
 from sensor_msgs.msg import CompressedImage
 from sensor_msgs.msg import Imu
 from sensor_msgs.msg import NavSatFix
@@ -41,13 +43,19 @@ def farmng_stamp_to_ros_time(event: Event) -> rospy.Time:
     Returns:
         rospy.Time: The ROS time.
     """
-    # unpack the stamp data
-    stamp: float | None = get_stamp_by_semantics_and_clock_type(
-        event, StampSemantics.DRIVER_RECEIVE, "monotonic"
-    )
+    # Unpack the stamp data from the event
+    # Use only the Amiga brain monotonic clock
+    # Prefer driver receive, fallback to service send
+    for semantics in [StampSemantics.DRIVER_RECEIVE, StampSemantics.SERVICE_SEND]:
+        stamp: float | None = get_stamp_by_semantics_and_clock_type(
+            event, semantics, "monotonic"
+        )
+        if stamp is not None:
+            break
+
     if stamp is None:
         raise ValueError(
-            f"Could not find DRIVER_RECEIVE timestamp for event with path: {event.uri.path}"
+            f"Could not find appropriate timestamp for event with path: {event.uri.path}"
         )
     return rospy.Time.from_sec(stamp)
 
@@ -71,6 +79,8 @@ def farmng_path_to_ros_type(uri: uri_pb2.Uri):
             return Imu
         elif uri.path in ["/left", "/right", "/rgb", "/disparity"]:
             return CompressedImage
+    elif "filter" in uri.query and uri.path == "/state":
+        return Odometry
 
     raise NotImplementedError(f"Unknown farmng message type: {uri}")
 
@@ -97,6 +107,76 @@ def farmng_to_ros_msg(event: Event, farmng_msg: Any) -> list:
         ros_msg.twist.linear.x = farmng_msg.linear_velocity_x
         ros_msg.twist.linear.y = farmng_msg.linear_velocity_y
         ros_msg.twist.angular.z = farmng_msg.angular_velocity
+        return [ros_msg]
+    # parse state estimation filter state
+    elif event.uri.path == "/state":
+        # print(farmng_msg)
+        ros_msg = Odometry()
+        # Unpack the stamp and frame_id data
+        ros_msg.header.stamp = farmng_stamp_to_ros_time(event)
+        ros_msg.header.frame_id = farmng_msg.pose.frame_b
+        ros_msg.child_frame_id = farmng_msg.pose.frame_b
+        # Unpack the Pose
+        ros_msg.pose.pose.position.x = farmng_msg.pose.a_from_b.translation.x
+        ros_msg.pose.pose.position.y = farmng_msg.pose.a_from_b.translation.y
+        ros_msg.pose.pose.position.z = farmng_msg.pose.a_from_b.translation.z
+        ros_msg.pose.pose.orientation.x = (
+            farmng_msg.pose.a_from_b.rotation.unit_quaternion.imag.x
+        )
+        ros_msg.pose.pose.orientation.y = (
+            farmng_msg.pose.a_from_b.rotation.unit_quaternion.imag.y
+        )
+        ros_msg.pose.pose.orientation.z = (
+            farmng_msg.pose.a_from_b.rotation.unit_quaternion.imag.z
+        )
+        ros_msg.pose.pose.orientation.w = (
+            farmng_msg.pose.a_from_b.rotation.unit_quaternion.real
+        )
+        # Unpack the Twist
+        ros_msg.twist.twist.linear.x = (
+            farmng_msg.pose.tangent_of_b_in_a.linear_velocity.x
+        )
+        ros_msg.twist.twist.linear.y = (
+            farmng_msg.pose.tangent_of_b_in_a.linear_velocity.y
+        )
+        ros_msg.twist.twist.linear.z = (
+            farmng_msg.pose.tangent_of_b_in_a.linear_velocity.z
+        )
+        ros_msg.twist.twist.angular.x = (
+            farmng_msg.pose.tangent_of_b_in_a.angular_velocity.x
+        )
+        ros_msg.twist.twist.angular.y = (
+            farmng_msg.pose.tangent_of_b_in_a.angular_velocity.y
+        )
+        ros_msg.twist.twist.angular.z = (
+            farmng_msg.pose.tangent_of_b_in_a.angular_velocity.z
+        )
+
+        # Unpack the covariance
+        std_pos_lin_x = farmng_msg.uncertainty_diagonal.data[0]
+        std_pos_lin_y = farmng_msg.uncertainty_diagonal.data[1]
+        std_pos_ang_z = farmng_msg.uncertainty_diagonal.data[2]
+        std_vel_lin_x = farmng_msg.uncertainty_diagonal.data[3]
+        std_vel_ang_z = farmng_msg.uncertainty_diagonal.data[4]
+        ros_msg.pose.covariance = (
+            np.diag(
+                [
+                    std_pos_lin_x**2,
+                    std_pos_lin_y**2,
+                    0.0,
+                    0.0,
+                    0.0,
+                    std_pos_ang_z**2,
+                ]
+            )
+            .flatten()
+            .tolist()
+        )
+        ros_msg.twist.covariance = (
+            np.diag([std_vel_lin_x**2, 0.0, 0.0, 0.0, 0.0, std_vel_ang_z**2])
+            .flatten()
+            .tolist()
+        )
         return [ros_msg]
     # parse GPS pvt message
     elif event.uri.path == "/pvt":
