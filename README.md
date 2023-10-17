@@ -21,7 +21,7 @@ PC with a remote `gRPC` connection to the Amiga brain (over wifi).
 
 The connection can be configured by changing the `host` fields in [`include/service_config.json`](/include/service_config.json) from `localhost` to your robot's name (e.g., `element-vegetable`).
 
-> You may refer to the [`amiga-ros-bridge` Docker Setup](/docker_setup.md)
+> You may refer to the [`amiga-ros-bridge` Docker Setup](https://github.com/farm-ng/amiga-ros-bridge/blob/main/docker_setup.md)
 > for **experimental** instructions on running the `amiga-ros-bridge` directly on the brain,
 > inside of a docker container.
 > However, please not that these are experimental and do not reflect the recommended workflow.
