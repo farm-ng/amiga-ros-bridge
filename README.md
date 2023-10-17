@@ -145,7 +145,7 @@ catkin_make
 ### Build the venv
 
 ```bash
-# Navigate to the bind mount catkin_ws
+# Navigate to the catkin_ws
 cd ~/catkin_ws/
 
 # Build the venv
@@ -156,7 +156,7 @@ cd ~/catkin_ws/
 ### Add the `venv` to `devel/setup.bash`
 
 ```bash
-# Navigate to the bind mount catkin_ws
+# Navigate to the catkin_ws
 cd ~/catkin_ws/
 
 # Get the current directory
@@ -166,7 +166,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 echo "source $DIR/src/amiga-ros-bridge/source_venv.sh" >> devel/setup.bash
 ```
 
-So that when you `source devel/setup.bash`,
+Now when you `source devel/setup.bash`,
 the `amiga-ros-bridge/venv/` will also be sourced.
 
 ## Use the ros bridge
@@ -234,12 +234,13 @@ It is recommended to adjust the [`include/service_config.json`](/include/service
 to suit your needs.
 Add the streams that you need and remove any you do not to save bandwidth and computational resourced.
 
-But keep in mind that a farm-ng -> ROS conversion for all messages has not yet been implemented.
-If the message/topic you need is not yet supported, please either:
-
-- (good) Post a request in [discourse.farm-ng.com](https://discourse.farm-ng.com/)
-- (better) Open an issue with a feature request for this stream
-- (best) Contribute the new stream by opening a PR to this open source repository!
+> NOTE: A farm-ng -> ROS conversion for all messages has not yet been implemented.
+>
+> If the message/topic you need is not yet supported, please either:
+>
+> - (good) Post a request in [discourse.farm-ng.com](https://discourse.farm-ng.com/)
+> - (better) Open an issue in this repository with your feature request
+> - (best) Contribute the new stream by opening a PR to this open source repository!
 
 ### Twist control
 
@@ -284,3 +285,6 @@ Run from your terminal:
 source ~/catkin_ws/devel/setup.bash
 rosrun amiga_ros_bridge examples/twist_wasd.py
 ```
+
+Drive the robot with `WASD` keys to increment / decrement linear and angular velocities.
+Hit the space bar to stop the robot (set linear and angular velocities to `0`).
